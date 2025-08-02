@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"github.com/charmbracelet/huh"
-	//"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
 )
 
@@ -13,6 +15,10 @@ var (
 	currency2	string
 	amount		string
 )
+
+type jsonData struct{
+	Rates []string `json:"rates"`
+}
 
 func main() {
 	form := huh.NewForm(
@@ -50,11 +56,24 @@ func main() {
 	startAmount, err := strconv.ParseFloat(amount, 32)
 	fmt.Println(startAmount)
 	//get api request from api
-	resp, err := http.Get("https://openexchangerates.org/api/latest.json?app_id=" + apikey thingy)
-	resp.Body.Close()
-	fmt.Println(resp)
-	//find first currency amount unless usd and divide it by starting amount
-	//find second amount and multipy it by starting amount to get final amount
-	//or just do amount * (rate to/ rate from)
-	//return answer
+	resp, err := http.Get("https://openexchangerates.org/api/latest.json?app_id=" + os.Getenv("API_KEY"))
+
+	data, err := ioutil.ReadAll(resp.Body)
+	
+	conversion1, conversion2 := DecodeJson(data)
+
+	intAmount, err := strconv.ParseFloat(amount, 64)
+	newAmount := intAmount * (conversion2 / conversion1)
+	fmt.Printf("Your new amount is: %.2f\n", newAmount)
+}
+
+func DecodeJson(data []byte) (float64, float64){
+	var newData map[string]interface{}	
+	json.Unmarshal(data, &newData)
+	rates := newData["rates"].(map[string]interface{})
+
+	conversion1 := rates[currency1]
+	conversion2 := rates[currency2]
+
+	return conversion1.(float64), conversion2.(float64)
 }
